@@ -55,14 +55,16 @@
                                                 <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
                                                 <input type="number" id="quantity" name="quantity" min="1"
                                                        max="<?php echo e($product->available_stock); ?>" value="1"
-                                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm quantity-input"
-                                                       onchange="validateQuantity(this, <?php echo e($product->available_stock); ?>)">
+                                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm quantity-input">
                                             </div>
                                             <button type="submit"
                                                     class="flex-1 bg-[#0ABAB5] hover:bg-[#56DFCF] text-white px-6 py-3 rounded-md font-medium transition duration-150 flex items-center justify-center add-to-cart-btn mt-6"
                                                     data-available-stock="<?php echo e($product->available_stock); ?>">
                                                 <i class="fas fa-cart-plus mr-2"></i>
-                                                Tambah ke Keranjang
+                                                <span class="btn-text">Tambah ke Keranjang</span>
+                                                <span class="btn-loading hidden">
+                                                    <i class="fas fa-spinner fa-spin mr-2"></i>Menambahkan...
+                                                </span>
                                             </button>
                                         </div>
                                     </form>
@@ -128,27 +130,7 @@
     </div>
 
     <script>
-    function validateQuantity(input, maxStock) {
-        let quantity = parseInt(input.value);
-
-        if (quantity < 1) {
-            input.value = 1;
-            quantity = 1;
-        }
-
-        if (quantity > maxStock) {
-            input.value = maxStock;
-            quantity = maxStock;
-        }
-
-        // Update informasi stok
-        document.getElementById('will-add').textContent = quantity;
-        document.getElementById('remaining-stock').textContent = maxStock - quantity;
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
-        const productQuantities = {};
-
         // Fungsi showNotification
         function showNotification(message, isError = false) {
             const notification = document.getElementById('notification');
@@ -174,20 +156,20 @@
             // Sembunyikan setelah 3 detik
             setTimeout(() => {
                 notification.classList.add('hidden');
-            }, 3000);
+            }, 5000);
         }
 
+        // Tangani form penambahan ke keranjang
         document.querySelectorAll('.add-to-cart-form').forEach(form => {
-            const productId = form.dataset.productId;
-            const button = form.querySelector('.add-to-cart-btn');
-            const availableStock = parseInt(button.dataset.availableStock);
-            const quantityInput = form.querySelector('.quantity-input');
-
-            productQuantities[productId] = 0;
-
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
 
+                const button = this.querySelector('.add-to-cart-btn');
+                const btnText = button.querySelector('.btn-text');
+                const btnLoading = button.querySelector('.btn-loading');
+                const quantityInput = this.querySelector('.quantity-input');
+                const productId = this.dataset.productId;
+                const availableStock = parseInt(button.dataset.availableStock);
                 const quantity = parseInt(quantityInput.value);
 
                 // Validasi quantity
@@ -196,17 +178,13 @@
                     return;
                 }
 
-                if (productQuantities[productId] + quantity > availableStock) {
-                    showNotification(`Tidak dapat menambah ${quantity} item. Stok hanya tersedia ${availableStock - productQuantities[productId]} item lagi.`, true);
-                    return;
-                }
-
+                // Tampilkan loading state
                 button.disabled = true;
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menambahkan...';
+                btnText.classList.add('hidden');
+                btnLoading.classList.remove('hidden');
 
                 try {
-                    const response = await fetch(form.action, {
+                    const response = await fetch(this.action, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -224,32 +202,39 @@
                     if (data.success) {
                         // Update jumlah keranjang di navbar
                         updateCartCount(data.cartCount);
-                        productQuantities[productId] += quantity;
 
-                        // Update informasi stok
-                        const remainingStock = availableStock - productQuantities[productId];
-                        document.getElementById('available-stock').textContent = availableStock;
-                        document.getElementById('remaining-stock').textContent = remainingStock;
-
-                        if (remainingStock <= 0) {
-                            button.disabled = true;
-                            button.classList.add('bg-gray-400', 'hover:bg-gray-400');
-                            button.innerHTML = '<i class="fas fa-times mr-2"></i>Stok Habis';
-                            quantityInput.disabled = true;
-                        }
-
+                        // Tampilkan notifikasi sukses
                         showNotification(data.message);
+
+                        // Update stok yang tersedia
+                        button.dataset.availableStock = data.availableStock;
+
+                        // Update tampilan stok
+                        // const stockBadge = document.querySelector('.bg-\\[\\#ADEED9\\]');
+                        // if (stockBadge && data.availableStock > 0) {
+                        //     stockBadge.textContent = `Stok Tersedia (${data.availableStock})`;
+                        // } else if (stockBadge && data.availableStock <= 0) {
+                        //     stockBadge.textContent = 'Stok Habis';
+                        //     stockBadge.className = 'ml-4 px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800';
+                        // }
+
+                        // Reset button state
+                        button.disabled = false;
+                        btnLoading.classList.add('hidden');
+                        btnText.classList.remove('hidden');
+
                     } else {
                         showNotification(data.message, true);
+                        button.disabled = false;
+                        btnLoading.classList.add('hidden');
+                        btnText.classList.remove('hidden');
                     }
                 } catch (error) {
                     console.error('Error:', error);
                     showNotification('Terjadi kesalahan', true);
-                } finally {
-                    if (productQuantities[productId] < availableStock) {
-                        button.disabled = false;
-                        button.innerHTML = originalText;
-                    }
+                    button.disabled = false;
+                    btnLoading.classList.add('hidden');
+                    btnText.classList.remove('hidden');
                 }
             });
         });
