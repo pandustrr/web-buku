@@ -124,8 +124,6 @@
     </div>
 
     <!-- SweetAlert CDN -->
-@section('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Fungsi showNotification
@@ -133,8 +131,10 @@
                 const notification = document.getElementById('notification');
                 const messageEl = document.getElementById('notification-message');
 
+                // Set pesan
                 messageEl.textContent = message;
 
+                // Set warna berdasarkan jenis notifikasi
                 notification.firstElementChild.className = isError ?
                     'bg-red-500 text-white px-4 py-3 rounded-md shadow-lg flex items-center' :
                     'bg-[#0ABAB5] text-white px-4 py-3 rounded-md shadow-lg flex items-center';
@@ -154,24 +154,6 @@
                 }, 3000);
             }
 
-            // Fungsi untuk menampilkan alert login
-            function showLoginAlert() {
-                Swal.fire({
-                    title: 'Login Diperlukan',
-                    text: 'Anda perlu login terlebih dahulu untuk menambahkan produk ke keranjang',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#0ABAB5',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Login Sekarang',
-                    cancelButtonText: 'Nanti Saja'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.location.href = "{{ route('login') }}";
-                    }
-                });
-            }
-
             // Tangani form tambah ke keranjang
             document.querySelectorAll('.add-to-cart-form').forEach(form => {
                 form.addEventListener('submit', async function(e) {
@@ -184,9 +166,6 @@
                         '<i class="fas fa-spinner fa-spin mr-2"></i>Menambahkan...';
 
                     try {
-                        const formData = new FormData(form);
-                        const quantity = formData.get('quantity');
-
                         const response = await fetch(form.action, {
                             method: 'POST',
                             headers: {
@@ -196,7 +175,7 @@
                             },
                             body: JSON.stringify({
                                 _token: '{{ csrf_token() }}',
-                                quantity: quantity
+                                quantity: 1
                             })
                         });
 
@@ -210,34 +189,6 @@
                                 el.classList.remove('hidden');
                             });
 
-                            // Update tampilan stok
-                            const stockElement = document.querySelector(
-                                '.ml-4.px-2.py-1.text-xs.font-medium.rounded-full');
-                            if (stockElement) {
-                                const currentStock = parseInt(stockElement.textContent.match(
-                                    /\d+/)[0]);
-                                const newStock = currentStock - quantity;
-
-                                if (newStock > 0) {
-                                    stockElement.textContent = `Stok Tersedia (${newStock})`;
-                                    // Update max quantity
-                                    form.querySelector('input[name="quantity"]').max = newStock;
-                                } else {
-                                    stockElement.classList.remove('bg-[#ADEED9]',
-                                        'text-green-800');
-                                    stockElement.classList.add('bg-red-100', 'text-red-800');
-                                    stockElement.textContent = 'Stok Habis';
-
-                                    // Nonaktifkan form
-                                    button.disabled = true;
-                                    button.classList.remove('bg-[#0ABAB5]',
-                                        'hover:bg-[#56DFCF]');
-                                    button.classList.add('bg-gray-400', 'cursor-not-allowed');
-                                    button.innerHTML =
-                                        '<i class="fas fa-ban mr-2"></i>Stok Habis';
-                                }
-                            }
-
                             // Tampilkan notifikasi
                             showNotification(data.message);
                         } else {
@@ -247,14 +198,12 @@
                         console.error('Error:', error);
                         showNotification('Terjadi kesalahan', true);
                     } finally {
-                        if (!button.disabled) {
-                            button.disabled = false;
-                            button.innerHTML = originalText;
-                        }
+                        button.disabled = false;
+                        button.innerHTML = originalText;
                     }
                 });
             });
         });
     </script>
-@endsection
+
 @endsection

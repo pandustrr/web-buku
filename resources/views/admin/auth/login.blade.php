@@ -27,12 +27,14 @@
                 <p class="text-gray-600 mt-2">Silakan login untuk melanjutkan</p>
             </div>
 
+            {{-- Pesan sukses (misalnya setelah logout) --}}
             @if (session('status'))
                 <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
                     {{ session('status') }}
                 </div>
             @endif
 
+            {{-- Pesan error validasi --}}
             @if ($errors->any())
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                     <ul class="list-disc list-inside">
@@ -43,7 +45,8 @@
                 </div>
             @endif
 
-            <form action="{{ route('admin.login') }}" method="POST">
+            {{-- Form Login --}}
+            <form action="{{ route('admin.login.submit') }}" method="POST">
                 @csrf
                 <div class="mb-4">
                     <label for="username" class="block text-gray-700 font-medium mb-2">

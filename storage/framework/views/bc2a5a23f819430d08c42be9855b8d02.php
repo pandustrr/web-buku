@@ -27,6 +27,7 @@
                 <p class="text-gray-600 mt-2">Silakan login untuk melanjutkan</p>
             </div>
 
+            
             <?php if(session('status')): ?>
                 <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
                     <?php echo e(session('status')); ?>
@@ -34,6 +35,7 @@
                 </div>
             <?php endif; ?>
 
+            
             <?php if($errors->any()): ?>
                 <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
                     <ul class="list-disc list-inside">
@@ -44,7 +46,8 @@
                 </div>
             <?php endif; ?>
 
-            <form action="<?php echo e(route('admin.login')); ?>" method="POST">
+            
+            <form action="<?php echo e(route('admin.login.submit')); ?>" method="POST">
                 <?php echo csrf_field(); ?>
                 <div class="mb-4">
                     <label for="username" class="block text-gray-700 font-medium mb-2">

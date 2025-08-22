@@ -142,7 +142,7 @@ public function confirm(Request $request)
             'pgtpq' => $request->pgtpq,
             'address' => $request->address,
             'notes' => $request->notes ?? '-',
-            'total_amount' => $totalAmount, 
+            'total_amount' => $totalAmount,
             'status' => 'menunggu'
         ]);
 

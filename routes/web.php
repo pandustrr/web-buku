@@ -54,8 +54,8 @@ Route::prefix('admin')->group(function () {
     Route::post('logout', [AdminAuthController::class, 'logout'])
         ->name('admin.logout');
 
-    // Rute yang membutuhkan autentikasi admin
-    Route::middleware(['auth:admin'])->group(function () {
+    // Rute yang membutuhkan autentikasi admin + auto logout
+    Route::middleware(['auth:admin', 'admin.autologout'])->group(function () {
 
         // Dashboard
         Route::get('dashboard', [AdminController::class, 'dashboard'])
@@ -111,4 +111,5 @@ Route::prefix('admin')->group(function () {
         });
 
     });
+
 });

@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Admin;
 use Illuminate\Support\Facades\Log;
-
 
 class AdminAuthController extends Controller
 {
@@ -15,7 +13,7 @@ class AdminAuthController extends Controller
      */
     public function showLoginForm()
     {
-        // Jika sudah login, redirect ke dashboard
+        // Kalau sudah login, langsung ke dashboard
         if (Auth::guard('admin')->check()) {
             return redirect()->route('admin.dashboard');
         }
@@ -33,21 +31,30 @@ class AdminAuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Pastikan username lowercase
+        // Normalisasi username biar lowercase
         $credentials['username'] = strtolower($credentials['username']);
 
-        Log::debug('Login attempt for admin:', $credentials);
+        Log::debug('Percobaan login admin:', ['username' => $credentials['username']]);
 
         if (Auth::guard('admin')->attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
-            Log::info('Admin logged in: ' . $credentials['username']);
+
+            Log::info('Admin berhasil login', [
+                'username' => $credentials['username'],
+                'ip' => $request->ip()
+            ]);
+
             return redirect()->intended(route('admin.dashboard'))
-                ->with('success', 'Login berhasil!');
+                ->with('success', 'Login berhasil, selamat datang!');
         }
 
-        Log::warning('Failed login attempt for admin: ' . $credentials['username']);
+        Log::warning('Login gagal untuk admin', [
+            'username' => $credentials['username'],
+            'ip' => $request->ip()
+        ]);
+
         return back()->withErrors([
-            'username' => 'Username atau password tidak valid.',
+            'username' => 'Username atau password salah.',
         ])->onlyInput('username');
     }
 
@@ -56,9 +63,8 @@ class AdminAuthController extends Controller
      */
     public function logout(Request $request)
     {
-        // Log aktivitas logout
         if (Auth::guard('admin')->check()) {
-            Log::channel('admin')->info('Admin logged out', [
+            Log::info('Admin logout', [
                 'username' => Auth::guard('admin')->user()->username,
                 'ip' => $request->ip()
             ]);
@@ -68,7 +74,7 @@ class AdminAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/admin/login')
+        return redirect()->route('admin.login')
             ->with('status', 'Anda telah logout.');
     }
 }

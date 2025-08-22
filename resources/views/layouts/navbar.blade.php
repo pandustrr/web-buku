@@ -27,7 +27,8 @@
                 @auth
                     <a href="{{ route('cart.index') }}" class="p-1 rounded-full text-gray-600 hover:text-[#0ABAB5] relative group">
                         <i class="fas fa-shopping-cart text-xl"></i>
-                        <span class="cart-count {{ auth()->user()->cart_items_count == 0 ? 'hidden' : '' }} absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-[#0ABAB5] rounded-full">
+                        <span id="cart-count"
+                              class="cart-count {{ auth()->user()->cart_items_count == 0 ? 'hidden' : '' }} absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-[#0ABAB5] rounded-full">
                             {{ auth()->user()->cart_items_count }}
                         </span>
                         <span class="absolute -bottom-1 left-1/2 w-0 h-0.5 bg-[#0ABAB5] group-hover:w-1/2 group-hover:transition-all"></span>
@@ -78,7 +79,8 @@
                 <a href="{{ route('cart.index') }}"
                    class="block px-3 py-2 rounded-md text-base font-medium {{ request()->routeIs('cart.*') ? 'text-[#0ABAB5] bg-[#ADEED9]' : 'text-gray-600 hover:text-[#0ABAB5] hover:bg-[#ADEED9]' }}">
                     <i class="fas fa-shopping-cart mr-2"></i> Keranjang
-                    <span class="ml-1 bg-[#0ABAB5] text-white text-xs px-2 py-0.5 rounded-full">
+                    <span id="cart-count-mobile"
+                          class="ml-1 {{ auth()->user()->cart_items_count == 0 ? 'hidden' : '' }} bg-[#0ABAB5] text-white text-xs px-2 py-0.5 rounded-full">
                         {{ auth()->user()->cart_items_count }}
                     </span>
                 </a>
@@ -112,11 +114,59 @@
         mobileMenu.classList.toggle('hidden');
     });
 
-    // Tutup menu jika klik di luar
     document.addEventListener('click', (e) => {
         if (!mobileMenu.contains(e.target) && !menuButton.contains(e.target)) {
             mobileMenu.classList.add('hidden');
         }
     });
-</script>
 
+    // 🔥 Fungsi update jumlah keranjang
+    function updateCartCount(count) {
+        const cartCount = document.getElementById('cart-count');
+        const cartCountMobile = document.getElementById('cart-count-mobile');
+
+        if (cartCount) {
+            if (count > 0) {
+                cartCount.textContent = count;
+                cartCount.classList.remove('hidden');
+            } else {
+                cartCount.classList.add('hidden');
+            }
+        }
+
+        if (cartCountMobile) {
+            if (count > 0) {
+                cartCountMobile.textContent = count;
+                cartCountMobile.classList.remove('hidden');
+            } else {
+                cartCountMobile.classList.add('hidden');
+            }
+        }
+    }
+
+    // Fungsi AJAX tambah produk ke keranjang
+    async function addToCart(productId, quantity = 1) {
+        try {
+            const response = await fetch(`/cart/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ quantity })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                updateCartCount(data.cartCount);
+                alert(data.message);
+            } else {
+                alert(data.message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Terjadi kesalahan saat menambahkan ke keranjang");
+        }
+    }
+</script>
