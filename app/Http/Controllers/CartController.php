@@ -44,18 +44,23 @@ class CartController extends Controller
             // Lock produk untuk mencegah race condition
             $product = Product::lockForUpdate()->find($product->id);
 
-            if ($quantity > $product->stok) {
+            // Cek stok tersedia
+            $availableStock = $product->stok;
+
+            // Jika produk sudah ada di keranjang, hitung total quantity yang akan dimasukkan
+            $existingItem = $cart->items()->where('product_id', $product->id)->first();
+            $currentQuantityInCart = $existingItem ? $existingItem->quantity : 0;
+            $totalQuantityAfterAdd = $currentQuantityInCart + $quantity;
+
+            if ($totalQuantityAfterAdd > $availableStock) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Jumlah melebihi stok yang tersedia'
+                    'message' => 'Jumlah melebihi stok yang tersedia. Stok tersedia: ' . $availableStock . ', sudah di keranjang: ' . $currentQuantityInCart
                 ], 400);
             }
 
-            $existingItem = $cart->items()->where('product_id', $product->id)->first();
-
             if ($existingItem) {
-                $newQuantity = $existingItem->quantity + $quantity;
-                $existingItem->update(['quantity' => $newQuantity]);
+                $existingItem->update(['quantity' => $totalQuantityAfterAdd]);
             } else {
                 $cart->items()->create([
                     'product_id' => $product->id,
@@ -67,7 +72,8 @@ class CartController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Produk berhasil ditambahkan ke keranjang',
-                'cartCount' => $cart->refresh()->total_items
+                'cartCount' => $cart->refresh()->unique_items_count,
+                'availableStock' => $availableStock - $totalQuantityAfterAdd // Stok tersisa
             ]);
         });
     }
@@ -98,76 +104,76 @@ class CartController extends Controller
         return back()->with('success', 'Produk berhasil dihapus dari keranjang');
     }
 
-public function confirm(Request $request)
-{
-    return DB::transaction(function () use ($request) {
-        $cart = Auth::user()->cart()->with(['items.product' => function($q) {
-            $q->lockForUpdate();
-        }])->first();
+    public function confirm(Request $request)
+    {
+        return DB::transaction(function () use ($request) {
+            $cart = Auth::user()->cart()->with(['items.product' => function ($q) {
+                $q->lockForUpdate();
+            }])->first();
 
-        if (!$cart || $cart->items->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Keranjang belanja kosong'
-            ], 400);
-        }
-
-        $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'pgtpq' => 'required|string|max:255',
-            'address' => 'required|string',
-            'notes' => 'nullable|string'
-        ]);
-
-        // Hitung total amount
-        $totalAmount = $cart->items->sum(function($item) {
-            return $item->price * $item->quantity;
-        });
-
-        // Validasi stok sebelum checkout
-        foreach ($cart->items as $item) {
-            if ($item->quantity > $item->product->stok) {
+            if (!$cart || $cart->items->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stok tidak mencukupi untuk produk: ' . $item->product->judul
+                    'message' => 'Keranjang belanja kosong'
                 ], 400);
             }
-        }
 
-        // Buat order baru
-        $order = Order::create([
-            'order_number' => Order::generateOrderNumber(),
-            'user_id' => Auth::id(),
-            'customer_name' => $request->customer_name,
-            'pgtpq' => $request->pgtpq,
-            'address' => $request->address,
-            'notes' => $request->notes ?? '-',
-            'total_amount' => $totalAmount,
-            'status' => 'menunggu'
-        ]);
-
-        // Tambahkan item ke order
-        foreach ($cart->items as $item) {
-            $order->items()->create([
-                'product_id' => $item->product_id,
-                'quantity' => $item->quantity,
-                'price' => $item->price
+            $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'pgtpq' => 'required|string|max:255',
+                'address' => 'required|string',
+                'notes' => 'nullable|string'
             ]);
 
-            // Kurangi stok
-            $item->product->decrement('stok', $item->quantity);
-        }
+            // Hitung total amount
+            $totalAmount = $cart->items->sum(function ($item) {
+                return $item->price * $item->quantity;
+            });
 
-        // Kosongkan keranjang
-        $cart->items()->delete();
+            // Validasi stok sebelum checkout
+            foreach ($cart->items as $item) {
+                if ($item->quantity > $item->product->stok) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Stok tidak mencukupi untuk produk: ' . $item->product->judul
+                    ], 400);
+                }
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Pesanan berhasil dikonfirmasi',
-            'order_number' => $order->order_number
-        ]);
-    });
-}
+            // Buat order baru
+            $order = Order::create([
+                'order_number' => Order::generateOrderNumber(),
+                'user_id' => Auth::id(),
+                'customer_name' => $request->customer_name,
+                'pgtpq' => $request->pgtpq,
+                'address' => $request->address,
+                'notes' => $request->notes ?? '-',
+                'total_amount' => $totalAmount,
+                'status' => 'menunggu'
+            ]);
+
+            // Tambahkan item ke order
+            foreach ($cart->items as $item) {
+                $order->items()->create([
+                    'product_id' => $item->product_id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price
+                ]);
+
+                // Kurangi stok
+                $item->product->decrement('stok', $item->quantity);
+            }
+
+            // Kosongkan keranjang
+            $cart->items()->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pesanan berhasil dikonfirmasi',
+                'order_number' => $order->order_number
+            ]);
+        });
+    }
 
     public function thankYou()
     {

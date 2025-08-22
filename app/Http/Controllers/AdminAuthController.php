@@ -39,10 +39,10 @@ class AdminAuthController extends Controller
         if (Auth::guard('admin')->attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
 
-            Log::info('Admin berhasil login', [
-                'username' => $credentials['username'],
-                'ip' => $request->ip()
-            ]);
+            // Log::info('Admin berhasil login', [
+            //     'username' => $credentials['username'],
+            //     'ip' => $request->ip()
+            // ]);
 
             return redirect()->intended(route('admin.dashboard'))
                 ->with('success', 'Login berhasil, selamat datang!');

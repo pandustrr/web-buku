@@ -120,7 +120,7 @@
         }
     });
 
-    // 🔥 Fungsi update jumlah keranjang
+    // 🔥 Fungsi update jumlah keranjang (jumlah item unik)
     function updateCartCount(count) {
         const cartCount = document.getElementById('cart-count');
         const cartCountMobile = document.getElementById('cart-count-mobile');
@@ -144,7 +144,7 @@
         }
     }
 
-    // Fungsi AJAX tambah produk ke keranjang
+    // 🔥 Fungsi AJAX tambah produk ke keranjang
     async function addToCart(productId, quantity = 1) {
         try {
             const response = await fetch(`/cart/${productId}`, {
@@ -152,6 +152,7 @@
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({ quantity })
             });
@@ -159,14 +160,56 @@
             const data = await response.json();
 
             if (data.success) {
+                // Update jumlah item unik di keranjang
                 updateCartCount(data.cartCount);
-                alert(data.message);
+
+                // Tampilkan notifikasi sukses
+                showNotification(data.message, false);
             } else {
-                alert(data.message);
+                // Tampilkan notifikasi error
+                showNotification(data.message, true);
             }
         } catch (error) {
-            console.error(error);
-            alert("Terjadi kesalahan saat menambahkan ke keranjang");
+            console.error('Error:', error);
+            showNotification("Terjadi kesalahan saat menambahkan ke keranjang", true);
         }
     }
+
+    // 🔥 Fungsi untuk menampilkan notifikasi
+    function showNotification(message, isError = false) {
+        // Cari elemen notifikasi yang sudah ada atau buat baru
+        let notification = document.getElementById('global-notification');
+
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'global-notification';
+            notification.className = 'fixed bottom-4 right-4 z-50';
+            document.body.appendChild(notification);
+        }
+
+        notification.innerHTML = `
+            <div class="${isError ? 'bg-red-500' : 'bg-[#0ABAB5]'} text-white px-6 py-4 rounded-lg shadow-lg flex items-center animate-fadeIn">
+                <i class="fas ${isError ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-3"></i>
+                <span>${message}</span>
+            </div>
+        `;
+
+        // Sembunyikan notifikasi setelah 3 detik
+        setTimeout(() => {
+            notification.innerHTML = '';
+        }, 3000);
+    }
+
+    // Style untuk animasi notifikasi
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out;
+        }
+    `;
+    document.head.appendChild(style);
 </script>

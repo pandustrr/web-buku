@@ -21,9 +21,16 @@ class Cart extends Model
         return $this->hasMany(CartItem::class);
     }
 
+    // Jumlah total item (semua kuantitas)
     public function getTotalItemsAttribute()
     {
         return $this->items->sum('quantity');
+    }
+
+    // Jumlah item unik (produk berbeda)
+    public function getUniqueItemsCountAttribute()
+    {
+        return $this->items->count();
     }
 
     public function getTotalPriceAttribute()
@@ -34,9 +41,9 @@ class Cart extends Model
     }
 
     public function getTotalAttribute()
-{
-    return $this->items->sum(function($item) {
-        return $item->price * $item->quantity;
-    });
-}
+    {
+        return $this->items->sum(function($item) {
+            return $item->price * $item->quantity;
+        });
+    }
 }

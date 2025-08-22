@@ -64,9 +64,12 @@
                     <div class="p-3 md:p-4 pt-0">
                         <?php if($product->stok > 0): ?>
                             <?php if(auth()->guard()->check()): ?>
-                                <form action="<?php echo e(route('cart.add', $product->id)); ?>" method="POST" class="add-to-cart-form">
+                                <form action="<?php echo e(route('cart.add', $product->id)); ?>" method="POST"
+                                      class="add-to-cart-form" data-product-id="<?php echo e($product->id); ?>">
                                     <?php echo csrf_field(); ?>
-                                    <button type="submit" class="w-full bg-[#0ABAB5] hover:bg-[#56DFCF] text-white text-center text-xs md:text-sm font-medium py-2 px-2 md:py-2 md:px-4 rounded transition duration-300 flex items-center justify-center">
+                                    <button type="submit"
+                                            class="w-full bg-[#0ABAB5] hover:bg-[#56DFCF] text-white text-center text-xs md:text-sm font-medium py-2 px-2 md:py-2 md:px-4 rounded transition duration-300 flex items-center justify-center add-to-cart-btn"
+                                            data-available-stock="<?php echo e($product->stok); ?>">
                                         <i class="fas fa-cart-plus mr-2"></i>
                                         Tambah ke Keranjang
                                     </button>
@@ -89,7 +92,7 @@
         <?php endif; ?>
     </section>
 
-    <div id="notification" class="fixed bottom-4 right-4 hidden">
+    <div id="notification" class="fixed bottom-4 right-4 hidden z-50">
         <div class="bg-[#0ABAB5] text-white px-4 py-3 rounded-md shadow-lg flex items-center">
             <i class="fas fa-check-circle mr-2"></i>
             <span id="notification-message"></span>
@@ -99,6 +102,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Track quantity in cart for each product
+    const productQuantities = {};
+
     // Fungsi showNotification
     function showNotification(message, isError = false) {
         const notification = document.getElementById('notification');
@@ -129,12 +135,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Tangani form tambah ke keranjang
     document.querySelectorAll('.add-to-cart-form').forEach(form => {
+        const productId = form.dataset.productId;
+        const button = form.querySelector('.add-to-cart-btn');
+        const availableStock = parseInt(button.dataset.availableStock);
+
+        // Initialize product quantity
+        productQuantities[productId] = 0;
+
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const button = form.querySelector('button');
-            const originalText = button.innerHTML;
+            // Cek jika sudah mencapai batas stok
+            if (productQuantities[productId] >= availableStock) {
+                showNotification('Tidak dapat menambah lagi. Stok telah mencapai batas maksimum.', true);
+                return;
+            }
+
             button.disabled = true;
+            const originalText = button.innerHTML;
             button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menambahkan...';
 
             try {
@@ -155,11 +173,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (data.success) {
                     // Update jumlah keranjang di navbar
-                    const cartCountElements = document.querySelectorAll('.cart-count');
-                    cartCountElements.forEach(el => {
-                        el.textContent = data.cartCount;
-                        el.classList.remove('hidden');
-                    });
+                    updateCartCount(data.cartCount);
+
+                    // Update quantity in cart untuk produk ini
+                    productQuantities[productId] += 1;
 
                     // Tampilkan notifikasi
                     showNotification(data.message);
@@ -170,11 +187,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error:', error);
                 showNotification('Terjadi kesalahan', true);
             } finally {
+                // Selalu kembalikan tombol ke state semula
                 button.disabled = false;
                 button.innerHTML = originalText;
             }
         });
     });
+
+    // Fungsi update cart count
+    function updateCartCount(count) {
+        const cartCountElements = document.querySelectorAll('#cart-count, #cart-count-mobile');
+        cartCountElements.forEach(el => {
+            if (count > 0) {
+                el.textContent = count;
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
 });
 </script>
 <?php $__env->stopSection(); ?>

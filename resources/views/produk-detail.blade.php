@@ -49,17 +49,19 @@
                             @if ($product->available_stock > 0)
                                 @if (auth()->check())
                                     <form action="{{ route('cart.add', $product) }}" method="POST"
-                                        class="mt-6 add-to-cart-form">
+                                        class="mt-6 add-to-cart-form" data-product-id="{{ $product->id }}">
                                         @csrf
                                         <div class="flex items-center space-x-4">
                                             <div class="w-24">
-                                                <label for="quantity" class="sr-only">Jumlah</label>
+                                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
                                                 <input type="number" id="quantity" name="quantity" min="1"
-                                                    max="{{ $product->available_stock }}" value="1"
-                                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                                                       max="{{ $product->available_stock }}" value="1"
+                                                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm quantity-input"
+                                                       onchange="validateQuantity(this, {{ $product->available_stock }})">
                                             </div>
                                             <button type="submit"
-                                                class="flex-1 bg-[#0ABAB5] hover:bg-[#56DFCF] text-white px-6 py-3 rounded-md font-medium transition duration-150 flex items-center justify-center">
+                                                    class="flex-1 bg-[#0ABAB5] hover:bg-[#56DFCF] text-white px-6 py-3 rounded-md font-medium transition duration-150 flex items-center justify-center add-to-cart-btn mt-6"
+                                                    data-available-stock="{{ $product->available_stock }}">
                                                 <i class="fas fa-cart-plus mr-2"></i>
                                                 Tambah ke Keranjang
                                             </button>
@@ -123,87 +125,145 @@
         </div>
     </div>
 
-    <!-- SweetAlert CDN -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Fungsi showNotification
-            function showNotification(message, isError = false) {
-                const notification = document.getElementById('notification');
-                const messageEl = document.getElementById('notification-message');
+    function validateQuantity(input, maxStock) {
+        let quantity = parseInt(input.value);
 
-                // Set pesan
-                messageEl.textContent = message;
+        if (quantity < 1) {
+            input.value = 1;
+            quantity = 1;
+        }
 
-                // Set warna berdasarkan jenis notifikasi
-                notification.firstElementChild.className = isError ?
-                    'bg-red-500 text-white px-4 py-3 rounded-md shadow-lg flex items-center' :
-                    'bg-[#0ABAB5] text-white px-4 py-3 rounded-md shadow-lg flex items-center';
+        if (quantity > maxStock) {
+            input.value = maxStock;
+            quantity = maxStock;
+        }
 
-                // Set ikon
-                notification.firstElementChild.innerHTML = `
-            <i class="fas ${isError ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2"></i>
-            <span id="notification-message">${message}</span>
-        `;
+        // Update informasi stok
+        document.getElementById('will-add').textContent = quantity;
+        document.getElementById('remaining-stock').textContent = maxStock - quantity;
+    }
 
-                // Tampilkan notifikasi
-                notification.classList.remove('hidden');
+    document.addEventListener('DOMContentLoaded', function() {
+        const productQuantities = {};
 
-                // Sembunyikan setelah 3 detik
-                setTimeout(() => {
-                    notification.classList.add('hidden');
-                }, 3000);
-            }
+        // Fungsi showNotification
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            const messageEl = document.getElementById('notification-message');
 
-            // Tangani form tambah ke keranjang
-            document.querySelectorAll('.add-to-cart-form').forEach(form => {
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
+            // Set pesan
+            messageEl.textContent = message;
 
-                    const button = form.querySelector('button');
-                    const originalText = button.innerHTML;
-                    button.disabled = true;
-                    button.innerHTML =
-                        '<i class="fas fa-spinner fa-spin mr-2"></i>Menambahkan...';
+            // Set warna berdasarkan jenis notifikasi
+            notification.firstElementChild.className = isError
+                ? 'bg-red-500 text-white px-4 py-3 rounded-md shadow-lg flex items-center'
+                : 'bg-[#0ABAB5] text-white px-4 py-3 rounded-md shadow-lg flex items-center';
 
-                    try {
-                        const response = await fetch(form.action, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            },
-                            body: JSON.stringify({
-                                _token: '{{ csrf_token() }}',
-                                quantity: 1
-                            })
-                        });
+            // Set ikon
+            notification.firstElementChild.innerHTML = `
+                <i class="fas ${isError ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2"></i>
+                <span id="notification-message">${message}</span>
+            `;
 
-                        const data = await response.json();
+            // Tampilkan notifikasi
+            notification.classList.remove('hidden');
 
-                        if (data.success) {
-                            // Update jumlah keranjang di navbar
-                            const cartCountElements = document.querySelectorAll('.cart-count');
-                            cartCountElements.forEach(el => {
-                                el.textContent = data.cartCount;
-                                el.classList.remove('hidden');
-                            });
+            // Sembunyikan setelah 3 detik
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
 
-                            // Tampilkan notifikasi
-                            showNotification(data.message);
-                        } else {
-                            showNotification(data.message, true);
+        document.querySelectorAll('.add-to-cart-form').forEach(form => {
+            const productId = form.dataset.productId;
+            const button = form.querySelector('.add-to-cart-btn');
+            const availableStock = parseInt(button.dataset.availableStock);
+            const quantityInput = form.querySelector('.quantity-input');
+
+            productQuantities[productId] = 0;
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const quantity = parseInt(quantityInput.value);
+
+                // Validasi quantity
+                if (quantity < 1) {
+                    showNotification('Jumlah harus minimal 1', true);
+                    return;
+                }
+
+                if (productQuantities[productId] + quantity > availableStock) {
+                    showNotification(`Tidak dapat menambah ${quantity} item. Stok hanya tersedia ${availableStock - productQuantities[productId]} item lagi.`, true);
+                    return;
+                }
+
+                button.disabled = true;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menambahkan...';
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            _token: '{{ csrf_token() }}',
+                            quantity: quantity
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Update jumlah keranjang di navbar
+                        updateCartCount(data.cartCount);
+                        productQuantities[productId] += quantity;
+
+                        // Update informasi stok
+                        const remainingStock = availableStock - productQuantities[productId];
+                        document.getElementById('available-stock').textContent = availableStock;
+                        document.getElementById('remaining-stock').textContent = remainingStock;
+
+                        if (remainingStock <= 0) {
+                            button.disabled = true;
+                            button.classList.add('bg-gray-400', 'hover:bg-gray-400');
+                            button.innerHTML = '<i class="fas fa-times mr-2"></i>Stok Habis';
+                            quantityInput.disabled = true;
                         }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        showNotification('Terjadi kesalahan', true);
-                    } finally {
+
+                        showNotification(data.message);
+                    } else {
+                        showNotification(data.message, true);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification('Terjadi kesalahan', true);
+                } finally {
+                    if (productQuantities[productId] < availableStock) {
                         button.disabled = false;
                         button.innerHTML = originalText;
                     }
-                });
+                }
             });
         });
-    </script>
 
+        // Fungsi update cart count
+        function updateCartCount(count) {
+            const cartCountElements = document.querySelectorAll('#cart-count, #cart-count-mobile');
+            cartCountElements.forEach(el => {
+                if (count > 0) {
+                    el.textContent = count;
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+        }
+    });
+    </script>
 @endsection

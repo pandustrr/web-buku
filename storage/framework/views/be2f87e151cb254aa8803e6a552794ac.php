@@ -62,7 +62,8 @@
                                             <input type="number" id="quantity-<?php echo e($item->id); ?>" name="quantity"
                                                 min="1" max="<?php echo e($item->product->stok); ?>"
                                                 value="<?php echo e($item->quantity); ?>"
-                                                class="w-20 px-2 py-1 border border-gray-300 rounded-md">
+                                                class="w-20 px-2 py-1 border border-gray-300 rounded-md"
+                                                onchange="validateCartQuantity(this, <?php echo e($item->id); ?>, <?php echo e($item->product->stok); ?>)">
                                             <button type="submit"
                                                 class="ml-2 text-sm text-[#0ABAB5] hover:text-[#56DFCF]">
                                                 Update
@@ -177,6 +178,21 @@
 </div>
 
 <script>
+    function validateCartQuantity(input, itemId, maxStock) {
+        let quantity = parseInt(input.value);
+
+        if (quantity < 1) {
+            input.value = 1;
+            quantity = 1;
+        }
+
+        if (quantity > maxStock) {
+            input.value = maxStock;
+            quantity = maxStock;
+            alert('Jumlah melebihi stok yang tersedia. Stok maksimum: ' + maxStock);
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         const whatsappBtn = document.getElementById('whatsappBtn');
 
