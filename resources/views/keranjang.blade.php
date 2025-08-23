@@ -251,7 +251,7 @@
 
                                 // Buka WhatsApp
                                 const encodedMessage = encodeURIComponent(message);
-                                window.open(`https://wa.me/62895352729214?text=${encodedMessage}`,
+                                window.open(`https://wa.me/6282316079651?text=${encodedMessage}`,
                                     '_blank');
 
                                 // Redirect ke halaman terima kasih

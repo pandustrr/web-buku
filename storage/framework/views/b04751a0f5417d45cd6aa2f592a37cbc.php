@@ -139,7 +139,6 @@
             // Set pesan
             messageEl.textContent = message;
 
-            // Set warna berdasarkan jenis notifikasi
             notification.firstElementChild.className = isError
                 ? 'bg-red-500 text-white px-4 py-3 rounded-md shadow-lg flex items-center'
                 : 'bg-[#0ABAB5] text-white px-4 py-3 rounded-md shadow-lg flex items-center';
